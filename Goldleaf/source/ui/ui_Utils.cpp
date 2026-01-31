@@ -21,6 +21,7 @@
 
 #include <ui/ui_Utils.hpp>
 #include <ui/ui_MainApplication.hpp>
+#include <fs/fs_Archive.hpp>
 
 extern ui::MainApplication::Ref g_MainApplication;
 extern cfg::Settings g_Settings;
@@ -113,6 +114,7 @@ namespace ui {
     void LoadCommonIcons() {
         g_CommonIcons[static_cast<u32>(CommonIconKind::Accounts)] = pu::sdl2::TextureHandle::New(pu::ui::render::LoadImageFromFile(g_Settings.PathForResource("/Common/Accounts.png")));
         g_CommonIcons[static_cast<u32>(CommonIconKind::Amiibo)] = pu::sdl2::TextureHandle::New(pu::ui::render::LoadImageFromFile(g_Settings.PathForResource("/Common/Amiibo.png")));
+		g_CommonIcons[static_cast<u32>(CommonIconKind::Archive)] = pu::sdl2::TextureHandle::New(pu::ui::render::LoadImageFromFile(g_Settings.PathForResource("/Common/Archive.png")));
         g_CommonIcons[static_cast<u32>(CommonIconKind::Browser)] = pu::sdl2::TextureHandle::New(pu::ui::render::LoadImageFromFile(g_Settings.PathForResource("/Common/Browser.png")));
         g_CommonIcons[static_cast<u32>(CommonIconKind::Certificate)] = pu::sdl2::TextureHandle::New(pu::ui::render::LoadImageFromFile(g_Settings.PathForResource("/Common/Certificate.png")));
         g_CommonIcons[static_cast<u32>(CommonIconKind::CFW)] = pu::sdl2::TextureHandle::New(pu::ui::render::LoadImageFromFile(g_Settings.PathForResource("/Common/CFW.png")));
@@ -151,7 +153,8 @@ namespace ui {
         return g_CommonIcons[static_cast<u32>(kind)];
     }
 
-    pu::sdl2::TextureHandle::Ref GetCommonIconForExtension(const std::string &ext) {
+    pu::sdl2::TextureHandle::Ref GetCommonIconForExtension(const std::string &path) {
+        const auto ext = LowerCaseString(fs::GetExtension(path));
         if(ext == "nsp") {
             return g_CommonIcons[static_cast<u32>(CommonIconKind::NSP)];
         }
@@ -175,6 +178,9 @@ namespace ui {
         }
         else if(ext == "bin") {
             return g_CommonIcons[static_cast<u32>(CommonIconKind::CFW)];
+        }
+        else if(fs::Archive::isSupportedArchive(path)) {
+			return g_CommonIcons[static_cast<u32>(CommonIconKind::Archive)];
         }
         else {
             return g_CommonIcons[static_cast<u32>(CommonIconKind::BinaryFile)];

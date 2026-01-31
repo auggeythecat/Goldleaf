@@ -41,6 +41,7 @@ namespace ui {
     enum class CommonIconKind {
         Accounts,
         Amiibo,
+		Archive,
         Browser,
         Certificate,
         CFW,
@@ -75,7 +76,7 @@ namespace ui {
     void DisposeCommonIcons();
 
     pu::sdl2::TextureHandle::Ref GetCommonIcon(const CommonIconKind kind);
-    pu::sdl2::TextureHandle::Ref GetCommonIconForExtension(const std::string &ext);
+    pu::sdl2::TextureHandle::Ref GetCommonIconForExtension(const std::string &path);
 
     void ClearApplicationIcons();
     void SetApplicationIcon(const u64 app_id, pu::sdl2::TextureHandle::Ref icon);

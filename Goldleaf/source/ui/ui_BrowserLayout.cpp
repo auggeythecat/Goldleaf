@@ -23,6 +23,7 @@
 #include <ui/ui_MainApplication.hpp>
 #include <hos/hos_Payload.hpp>
 #include <es/es_CommonCertificate.hpp>
+#include <fs/fs_Archive.hpp>
 
 extern ui::MainApplication::Ref g_MainApplication;
 extern cfg::Settings g_Settings;
@@ -54,7 +55,8 @@ namespace ui {
             if(!g_Clipboard.empty()) {
                 auto exp = fs::GetExplorerForPath(g_Clipboard);
                 const bool clipboard_is_dir = exp->IsDirectory(g_Clipboard);
-                auto entry_icon = clipboard_is_dir ? GetCommonIcon(CommonIconKind::Directory) : GetCommonIconForExtension(fs::GetExtension(g_Clipboard));
+                g_MainApplication->ShowNotification(g_Clipboard);
+                auto entry_icon = clipboard_is_dir ? GetCommonIcon(CommonIconKind::Directory) : GetCommonIconForExtension(g_Clipboard);
                 const auto option = g_MainApplication->DisplayDialog(cfg::Strings.GetString(222), cfg::Strings.GetString(223) + "\n(" + g_Clipboard + ")", { cfg::Strings.GetString(111), cfg::Strings.GetString(18) }, true, entry_icon);
                 if(option == 0) {
                     const auto item_name = fs::GetBaseName(g_Clipboard);
@@ -154,6 +156,10 @@ namespace ui {
         else if(ext == "bin") {
             dialog_opts.push_back(cfg::Strings.GetString(66));
             option_count++;
+        }
+        else if (fs::Archive::isSupportedArchive(full_item)) {
+            dialog_opts.push_back("test complete");
+			option_count++;
         }
         else if(!is_bin) {
             dialog_opts.push_back(cfg::Strings.GetString(71));
@@ -416,6 +422,13 @@ namespace ui {
                         g_MainApplication->ShowNotification(cfg::Strings.GetString(460));
                     }
                     break;
+                }
+            }
+        }
+        else if (fs::Archive::isSupportedArchive(full_item)) {
+            switch (option_1) {
+            case 0: {
+                    g_MainApplication->ShowNotification("something works for some reason");
                 }
             }
         }
@@ -720,7 +733,7 @@ namespace ui {
                 }
                 else {
                     const auto ext = LowerCaseString(fs::GetExtension(item));
-                    menu_item->SetIcon(GetCommonIconForExtension(ext));
+                    menu_item->SetIcon(GetCommonIconForExtension(item));
                 }
                 menu_item->AddOnKey(std::bind(&BrowserLayout::fsItems_DefaultKey, this, item));
                 menu_item->AddOnKey(std::bind(&BrowserLayout::fsItems_Y, this, item), HidNpadButton_Y);
