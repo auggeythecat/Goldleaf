@@ -428,7 +428,11 @@ namespace ui {
         else if (fs::Archive::isSupportedArchive(full_item)) {
             switch (option_1) {
             case 0: {
-                    g_MainApplication->ShowNotification("something works for some reason");
+                    if(fs::Archive::ExtractArchive(full_item)) {
+                        g_MainApplication->ShowNotification("Archive extracted successfully.");
+                    } else {
+                        g_MainApplication->ShowNotification("Failed to extract archive.");
+                    }
                 }
             }
         }
