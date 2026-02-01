@@ -20,6 +20,7 @@
 */
 
 #pragma once
+#include <ui/ui_ExtractLayout.hpp>
 #include <ui/ui_AboutLayout.hpp>
 #include <ui/ui_AccountLayout.hpp>
 #include <ui/ui_AmiiboDumpLayout.hpp>
@@ -59,6 +60,7 @@ namespace ui {
             AccountUid cur_selected_user;
             std::string cur_time;
             bool read_values_once;
+            ExtractLayout::Ref extract_lyt;
             MainMenuLayout::Ref main_menu_lyt;
             BrowserLayout::Ref browser_lyt;
             FileContentLayout::Ref file_content_lyt;
@@ -135,6 +137,10 @@ namespace ui {
 
             void OnInput(const u64 down, const u64 up, const u64 held);
             
+            inline ExtractLayout::Ref &GetExtractLayout() {
+                return this->extract_lyt;
+            }
+
             inline MainMenuLayout::Ref &GetMainMenuLayout() {
                 return this->main_menu_lyt;
             }

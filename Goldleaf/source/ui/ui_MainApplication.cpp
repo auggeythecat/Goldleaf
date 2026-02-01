@@ -141,6 +141,7 @@ namespace ui {
 
         this->UpdateValues();
 
+        this->extract_lyt = ExtractLayout::New();
         this->main_menu_lyt = MainMenuLayout::New();
         this->browser_lyt = BrowserLayout::New();
         this->file_content_lyt = FileContentLayout::New();
@@ -161,6 +162,7 @@ namespace ui {
         this->update_install_lyt = UpdateInstallLayout::New();
         this->web_browser_lyt = WebBrowserLayout::New();
         this->about_lyt = AboutLayout::New();
+        _UI_MAINAPP_MENU_SET_BASE(this->extract_lyt);
         _UI_MAINAPP_MENU_SET_BASE(this->main_menu_lyt);
         _UI_MAINAPP_MENU_SET_BASE(this->browser_lyt);
         _UI_MAINAPP_MENU_SET_BASE(this->explore_menu_lyt);
