@@ -43,8 +43,8 @@ namespace fs {
 
 	bool Archive::ExtractArchive(const std::string& archivePath, ExtractStartCallback start_cb, ExtractProgressCallback prog_cb) {
 		auto exp = fs::GetSdCardExplorer();
+		
 		auto totalAchiveSize = exp->GetFileSize(archivePath);
-
 		start_cb(totalAchiveSize);
 
 		std::string extractDir = archivePath.substr(0, archivePath.find_last_of("."));
@@ -58,11 +58,13 @@ namespace fs {
 
 		struct archive_entry *entry;
 
-		u64 last_header_offset = 0;
+		u64 last_reported_bytes = 0;
 
 		while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
 				std::string currentFile = extractDir + "/" + std::string(archive_entry_pathname(entry));
-				if (!isSafePath(currentFile)) {
+
+				if (currentFile.find("..") != std::string::npos) {
+					GLEAF_WARN_FMT("SKIPPED FILE. Unsafe path detected: %s", currentFile.c_str());
 					continue;
 				}
 				
@@ -73,46 +75,39 @@ namespace fs {
 				}
 
 				auto f = fopen(currentFile.c_str(), "wb");
+
 				const void* workbuf;
 				size_t size;
 				u64 offset;
 				u64 currentPos = 0;
 
+				char write_buf[131072];
+				setvbuf(f, write_buf, _IOFBF, sizeof(write_buf));
+				
 				while (archive_read_data_block(a, &workbuf, &size, (int64_t*) &offset) == ARCHIVE_OK) {
-					// exp->WriteFile(currentFile, workbuf, size);
 					GLEAF_LOG_FMT("Writing file: %s (Offset: %ld, Size: %zu)", currentFile.c_str(), offset, size);
 					
-					if(offset != currentPos) {
+					// exp->WriteFile(currentFile, workbuf, size);
+					if((u64)offset != currentPos) {
 						fseeko(f, offset, SEEK_SET);
 						currentPos = offset;
 					}
 
 					currentPos += fwrite(workbuf, 1, size, f);
-			
+					
+					u64 current_compressed_bytes = archive_filter_bytes(a, -1);
+					if(current_compressed_bytes - last_reported_bytes > 128 * 1024) {
+						prog_cb(current_compressed_bytes - last_reported_bytes);
+						last_reported_bytes = current_compressed_bytes;
+					}
 				}
 				fclose(f);
-				u64 current_offset = archive_read_header_position(a);
-
-				if(current_offset > last_header_offset) {
-					prog_cb(current_offset - last_header_offset);
-					last_header_offset = current_offset;
-				}
 			}
 
-		if(totalAchiveSize > last_header_offset) {
-			prog_cb(totalAchiveSize - last_header_offset);
-			
-			archive_read_free(a);
-			
+		if(totalAchiveSize > last_reported_bytes) {
+			prog_cb(totalAchiveSize - last_reported_bytes);
 		}
-		return true;
-	}
-	
-	bool Archive::isSafePath(const std::string& path) {
-		if (path.find("..") != std::string::npos) {
-			GLEAF_WARN_FMT("SKIPPED FILE. Unsafe path detected: %s", path.c_str());
-			return false;
-		}
+		archive_read_free(a);
 		return true;
 	}
 }
