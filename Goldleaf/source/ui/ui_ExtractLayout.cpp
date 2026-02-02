@@ -28,6 +28,7 @@ namespace ui {
     }
 
     void ExtractLayout::Extract(const std::string& archivePath, fs::Explorer *exp) {
+        // TODO: Added strings to config files
         auto last_tp = std::chrono::steady_clock::now();
         this->extract_p_bar->SetVisible(true);
         bool success = fs::Archive::ExtractArchive(archivePath, [&](const u64 total_size) {
@@ -46,6 +47,7 @@ namespace ui {
             g_MainApplication->CallForRender();
         });
 
+        this->extract_p_bar->SetVisible(false);
         if (success) {
             g_MainApplication->ShowNotification("Archive extracted successfully.");
         } else {

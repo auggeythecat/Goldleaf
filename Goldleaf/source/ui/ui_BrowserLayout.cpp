@@ -158,7 +158,7 @@ namespace ui {
             option_count++;
         }
         else if (fs::Archive::isSupportedArchive(full_item)) {
-            dialog_opts.push_back("test complete");
+            dialog_opts.push_back("Extract Archive"); // TODO: Add to strings config
 			option_count++;
         }
         else if(!is_bin) {

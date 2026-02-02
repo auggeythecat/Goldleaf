@@ -41,59 +41,61 @@ namespace fs {
 	}
 
 
-	bool Archive::ExtractArchive(const std::string& archivePath, ExtractStartCallback start_cb, ExtractProgressCallback prog_cb) {
+	bool Archive::ExtractArchive(const std::string& archive_path, ExtractStartCallback start_cb, ExtractProgressCallback prog_cb) {
 		auto exp = fs::GetSdCardExplorer();
 		
-		auto totalAchiveSize = exp->GetFileSize(archivePath);
-		start_cb(totalAchiveSize);
+		auto total_archive_size = exp->GetFileSize(archive_path);
+		start_cb(total_archive_size);
 
-		std::string extractDir = archivePath.substr(0, archivePath.find_last_of("."));
-		exp->CreateDirectory(extractDir);
+		std::string extract_dir = archive_path.substr(0, archive_path.find_last_of("."));
+		exp->CreateDirectory(extract_dir);
 
 		struct archive *a = archive_read_new();
 		archive_read_support_format_all(a);
 		archive_read_support_filter_all(a);
 
-		if (archive_read_open_filename(a, archivePath.c_str(), 256 * 1024) != ARCHIVE_OK) { archive_read_free(a); return false; }
+		if (archive_read_open_filename(a, archive_path.c_str(), 512 * 1024) != ARCHIVE_OK) { archive_read_free(a); return false; }
 
 		struct archive_entry *entry;
 
 		u64 last_reported_bytes = 0;
 
 		while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
-				std::string currentFile = extractDir + "/" + std::string(archive_entry_pathname(entry));
+				std::string current_file = extract_dir + "/" + std::string(archive_entry_pathname(entry));
 
-				if (currentFile.find("..") != std::string::npos) {
-					GLEAF_WARN_FMT("SKIPPED FILE. Unsafe path detected: %s", currentFile.c_str());
+				if (current_file.find("..") != std::string::npos) {
+					GLEAF_WARN_FMT("SKIPPED FILE. Unsafe path detected: %s", current_file.c_str());
 					continue;
 				}
 				
 				if (archive_entry_filetype(entry) == AE_IFDIR) {
-					exp->CreateDirectory(currentFile);
-					GLEAF_LOG_FMT("Making directory: %s", currentFile.c_str());
+					exp->CreateDirectory(current_file);
+					GLEAF_LOG_FMT("Making directory: %s", current_file.c_str());
 					continue;
 				}
 
-				auto f = fopen(currentFile.c_str(), "wb");
+				auto f = fopen(current_file.c_str(), "wb");
 
 				const void* workbuf;
 				size_t size;
 				u64 offset;
-				u64 currentPos = 0;
+				u64 current_pos = 0;
 
-				char write_buf[131072];
+				char write_buf[256 * 1024];
 				setvbuf(f, write_buf, _IOFBF, sizeof(write_buf));
 				
 				while (archive_read_data_block(a, &workbuf, &size, (int64_t*) &offset) == ARCHIVE_OK) {
-					GLEAF_LOG_FMT("Writing file: %s (Offset: %ld, Size: %zu)", currentFile.c_str(), offset, size);
+					GLEAF_LOG_FMT("Writing file: %s (Offset: %ld, Size: %zu)", current_file.c_str(), offset, size);
 					
-					// exp->WriteFile(currentFile, workbuf, size);
-					if((u64)offset != currentPos) {
+					// exp->WriteFile(current_file, workbuf, size);
+					// TODO: add offset writing function to StdExplorer?
+
+					if((u64)offset != current_pos) {
 						fseeko(f, offset, SEEK_SET);
-						currentPos = offset;
+						current_pos = offset;
 					}
 
-					currentPos += fwrite(workbuf, 1, size, f);
+					current_pos += fwrite(workbuf, 1, size, f);
 					
 					u64 current_compressed_bytes = archive_filter_bytes(a, -1);
 					if(current_compressed_bytes - last_reported_bytes > 128 * 1024) {
@@ -104,8 +106,8 @@ namespace fs {
 				fclose(f);
 			}
 
-		if(totalAchiveSize > last_reported_bytes) {
-			prog_cb(totalAchiveSize - last_reported_bytes);
+		if(total_archive_size > last_reported_bytes) {
+			prog_cb(total_archive_size - last_reported_bytes);
 		}
 		archive_read_free(a);
 		return true;
