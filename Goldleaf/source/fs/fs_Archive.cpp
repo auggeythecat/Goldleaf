@@ -47,7 +47,20 @@ namespace fs {
 		auto total_archive_size = exp->GetFileSize(archive_path);
 		start_cb(total_archive_size);
 
-		std::string extract_dir = archive_path.substr(0, archive_path.find_last_of("."));
+		std::string extract_dir = archive_path;
+		size_t dot_pos = extract_dir.rfind(".");
+
+		if (dot_pos != std::string::npos && dot_pos > 4) {
+			std::string last_ext = extract_dir.substr(dot_pos);
+			if ((last_ext == ".gz" || last_ext == ".xz" || last_ext == ".bz2" || last_ext == ".Z") &&
+				extract_dir.substr(dot_pos - 4, 4) == ".tar") {
+				dot_pos -= 4;
+			}
+		}
+
+		if (dot_pos != std::string::npos)
+			extract_dir = extract_dir.substr(0, dot_pos);
+
 		exp->CreateDirectory(extract_dir);
 
 		struct archive *a = archive_read_new();
