@@ -39,14 +39,14 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source/fatfs source/acc source/expt source/fs source/drive source/cnt source/hos source/net source/nsp source/cfg source/nfp source/ui source/usb source/usb/cmd source/res source/upd source/util source
+SOURCES		:=	tracy tracy/LZ4 source/fatfs source/acc source/expt source/fs source/drive source/cnt source/hos source/net source/nsp source/cfg source/nfp source/ui source/usb source/usb/cmd source/res source/upd source/util source
 INCLUDES	:=	include ../glaze/include
 DATA		:=	data
 ROMFS		:=	romfs
 
 VER_MAJOR	:= 1
 VER_MINOR	:= 2
-VER_MICRO	:= 0
+VER_MICRO	:= 5
 
 APP_TITLE   := Goldleaf
 APP_AUTHOR  := XorTroll
@@ -58,10 +58,11 @@ APP_VERSION := $(VER_MAJOR).$(VER_MINOR).$(VER_MICRO)
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -O2 -ffunction-sections -Wall -Werror $(ARCH) $(DEFINES)
+CFLAGS	:=	-g -O2 -ffunction-sections -w $(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ `sdl2-config --cflags`
 CFLAGS	+=	-DGLEAF_MAJOR=$(VER_MAJOR) -DGLEAF_MINOR=$(VER_MINOR) -DGLEAF_MICRO=$(VER_MICRO) -DGLEAF_VERSION=\"$(APP_VERSION)\"
+CFLAGS  +=  -DTRACY_ENABLE -DTRACY_USE_MALLOC -DTRACY_ONLY_IPV4 -DTRACY_NO_PIPE -DTRACY_NO_CODE_TRANSFER
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++23
 

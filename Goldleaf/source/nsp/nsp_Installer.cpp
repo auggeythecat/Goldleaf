@@ -27,6 +27,8 @@
 #include <cfg/cfg_Settings.hpp>
 #include <ui/ui_MainApplication.hpp>
 
+#include "../../tracy/tracy/Tracy.hpp"
+
 extern ui::MainApplication::Ref g_MainApplication;
 extern cfg::Settings g_Settings;
 
@@ -103,6 +105,9 @@ namespace nsp {
                 }
 
                 Result PopHandleNextBuffer() {
+                    auto before = std::chrono::high_resolution_clock::now();
+                    ZoneScoped;
+                    
                     // Ensure two buffers are not written at the same time
                     // TODO: multi-thread/multiple NCM instances...?
                     ScopedLock queue_lock(this->buffer_queue_lock);
@@ -121,11 +126,15 @@ namespace nsp {
                     }
                     const auto rc = ncmContentStorageWritePlaceHolder(&this->cnt_storage, &placehld_id, offset, buf.buf, buf.size);
                     fs::DeleteWorkBuffer(buf.buf);
-
+                    
                     {
                         ScopedLock rc_lock(this->last_rc_lock);
                         this->last_rc = rc;
                     }
+                    
+                    auto after = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(after - before);
+                    TracyPlot("time / buf write", (int64_t)duration.count());
                     return rc;
                 }
 
@@ -154,6 +163,7 @@ namespace nsp {
             auto ctx = reinterpret_cast<ContentWriteContext*>(ctx_raw);
 
             while(true) {
+                ZoneScoped;
                 const auto status = ctx->GetStatus();
                 if(status == ContentWriteContext::Status::Done) {
                     break;
@@ -165,7 +175,6 @@ namespace nsp {
                         break;
                     }
                 }
-
                 svcSleepThread(100'000ul);
             }
         }
@@ -177,6 +186,7 @@ namespace nsp {
     }
 
     Result Installer::PrepareInstallation() {
+        ZoneScoped;
         GLEAF_RC_UNLESS(pfs0_file.IsOk(), rc::goldleaf::ResultInvalidNsp);
         GLEAF_RC_TRY(ncmOpenContentStorage(&this->cnt_storage, this->storage_id));
         GLEAF_RC_TRY(ncmOpenContentMetaDatabase(&this->cnt_meta_db, this->storage_id));
@@ -251,9 +261,10 @@ namespace nsp {
             GLEAF_RC_UNLESS(!cnmt_file_name.empty(), rc::goldleaf::ResultCnmtNotFound);
 
             const auto cnmt_file_size = cnmt_nca_fs_obj.GetFileSize(cnmt_file_name);
-            auto cnmt_read_buf = fs::AllocateWorkBuffer(cnmt_file_size);
+            u8* cnmt_read_buf;
+            TracyAlloc(cnmt_read_buf, cnmt_file_size);
             ScopeGuard on_exit([&]() {
-                fs::DeleteWorkBuffer(cnmt_read_buf);
+                TracyFree(cnmt_read_buf);
             });
 
             cnmt_nca_fs_obj.ReadFile(cnmt_file_name, 0, cnmt_file_size, cnmt_read_buf);
@@ -348,10 +359,12 @@ namespace nsp {
     }
 
     Result Installer::InstallTicketCertificate() {
+        ZoneScoped;
         if(this->tik_file_size > 0) {
-            auto tik_buf = fs::AllocateWorkBuffer(this->tik_file_size);
+            u8* tik_buf; 
+            TracyAlloc(tik_buf, this->tik_file_size);
             ScopeGuard on_exit([&]() {
-                fs::DeleteWorkBuffer(tik_buf);
+                TracyFree(tik_buf);
             });
 
             const auto tik_path = GLEAF_PATH_NAND_INSTALL_TEMP_DIR "/" + this->tik_file_name;
@@ -369,9 +382,10 @@ namespace nsp {
             const auto cert_path = GLEAF_PATH_NAND_INSTALL_TEMP_DIR "/" + fs::GetFileName(this->tik_file_name) + ".cert";
             if(nand_sys_explorer->IsFile(cert_path)) {
                 const auto cert_file_size = nand_sys_explorer->GetFileSize(cert_path);
-                auto cert_buf = fs::AllocateWorkBuffer(cert_file_size);
+                u8* cert_buf;
+                TracyAlloc(cert_buf, cert_file_size);
                 ScopeGuard on_exit([&]() {
-                    fs::DeleteWorkBuffer(cert_buf);
+                    TracyFree(cert_buf);
                 });
                 nand_sys_explorer->ReadFile(cert_path, 0, cert_file_size, cert_buf);
 
@@ -390,6 +404,7 @@ namespace nsp {
     }
 
     Result Installer::UpdateRecordAndContentMetas() {
+        ZoneScoped;
         const auto &main_program = this->inst_contents.front();
         const auto base_app_id = cnt::GetBaseApplicationId(main_program.meta_key.id, static_cast<NcmContentMetaType>(main_program.meta_key.type));
 
@@ -490,8 +505,11 @@ namespace nsp {
                     break;
                 }
             }
-
+            
             while(rem_size) {
+                // ZoneText(content_file_name.c_str(), content_file_name.size());
+                ZoneNamedN(chunkRead, "Read Buffer Chunk", true);
+                
                 const auto last_rc = write_ctx.GetLastResult();
                 if(R_FAILED(last_rc)) {
                     GLEAF_RC_TRY(threadWaitForExit(&cnt_write_thread));
@@ -500,8 +518,10 @@ namespace nsp {
                 }
 
                 const auto read_size = std::min(rem_size, g_Settings.json_settings.installs.value().copy_buffer_max_size.value());
-                auto read_buf = fs::AllocateWorkBuffer(read_size);
+                u8* read_buf;
+                TracyAlloc(read_buf, read_size);
                 u64 tmp_read_size = 0;
+                // ZoneValue(read_size);
                 switch(cnt.content_type) {
                     case NcmContentType_Meta:
                     case NcmContentType_Control: {

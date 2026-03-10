@@ -22,6 +22,8 @@
 #include <ui/ui_InstallLayout.hpp>
 #include <ui/ui_MainApplication.hpp>
 
+#include "../../tracy/tracy/Tracy.hpp"
+
 extern ui::MainApplication::Ref g_MainApplication;
 extern cfg::Settings g_Settings;
 
@@ -273,6 +275,7 @@ namespace ui {
     }
 
     bool InstallLayout::StartInstall(const std::string &path, const std::string &pres_path, fs::Explorer *exp, const NcmStorageId storage_id, const bool omit_confirmation, const bool skip_if_already_installed) {
+        ZoneNamedN(install1, "UI::StartInstall", true);
         g_MainApplication->LoadCommonIconMenuData(true, cfg::Strings.GetString(77), CommonIconKind::Storage, cfg::Strings.GetString(145) + " " + pres_path);
         ScopeGuard on_exit([&]() {
             // Just in case
@@ -282,7 +285,7 @@ namespace ui {
         });
 
         nsp::Installer nsp_installer(path, exp, storage_id);
-
+        ZoneNamedN(install2, "Install::Prepare", true);
         auto rc = nsp_installer.PrepareInstallation();
         if(R_FAILED(rc)) {
             if(rc == rc::goldleaf::ResultContentAlreadyInstalled) {
@@ -292,6 +295,7 @@ namespace ui {
 
                 const auto option = g_MainApplication->DisplayDialog(cfg::Strings.GetString(77), cfg::Strings.GetString(272) + "\n" + cfg::Strings.GetString(273) + "\n" + cfg::Strings.GetString(274), { cfg::Strings.GetString(111), cfg::Strings.GetString(18) }, true);
                 if(option == 0) {
+                    ZoneNamedN(install3, "Install::GetPrograms", true);
                     for(const auto &program: nsp_installer.GetInstallablePrograms()) {
                         const auto program_id = program.meta_key.id;
                         GLEAF_WARN_FMT("Checking program %016lX...", program_id);
@@ -309,6 +313,7 @@ namespace ui {
                             }
                         }
                     }
+                    ZoneNamedN(install4, "Install::FinalizeAndPrepare", true);
                     nsp_installer.FinalizeInstallation();
                     rc = nsp_installer.PrepareInstallation();
                     if(R_FAILED(rc)) {
@@ -359,6 +364,7 @@ namespace ui {
         }
         
         if(do_install) {
+            ZoneNamedN(install5, "Install::Tik", true);
             rc = nsp_installer.InstallTicketCertificate();
             if(R_FAILED(rc)) {
                 HandleResult(rc, cfg::Strings.GetString(251));
@@ -367,7 +373,7 @@ namespace ui {
             }
 
             hos::LockExit();
-
+            ZoneNamedN(install6, "UI::ProgBarInit", true);
             g_MainApplication->ClearLayout(g_MainApplication->GetInstallLayout());
             this->content_info_texts.clear();
             this->content_p_bars.clear();
@@ -410,6 +416,7 @@ namespace ui {
 
             auto last_tp = std::chrono::steady_clock::now();
 
+            ZoneNamedN(install7, "Install::WriteContents", true);
             rc = nsp_installer.WriteContents([&](const nsp::ContentWriteProgress &write_start) {
                 u32 i = 0;
                 u32 cnt_counts[cnt::MaxContentCount] = {};
@@ -450,7 +457,7 @@ namespace ui {
 
                 g_MainApplication->CallForRender();
             });
-
+            ZoneNamedN(install8, "Install::UpdateRecordAndContentMetas", true);
             rc = nsp_installer.UpdateRecordAndContentMetas();
             if(R_FAILED(rc)) {
                 HandleInstallationFailure(rc, nsp_installer);
